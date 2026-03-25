@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TransactionStatus {
+  WAITING_FOR_PAYMENT
+  PAID
+  SHIPPED
+  SUCCESSFULLY_DELIVERED
+  DISPUTED
+  COMPLETED
+}
+
+model Transaction {
+  id                String            @id @default(uuid())
+  sellerEmail       String
+  sellerBankAccount String
+  buyerEmail        String
+  amount            Float
+  subject           String?
+  description       String?
+  status            TransactionStatus @default(WAITING_FOR_PAYMENT)
+  trackingId        String?
+  pinCodeBuyer      String
+  pinCodeSeller     String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  comments          AdminComment[]
+}
+
+model AdminComment {
+  id            String      @id @default(uuid())
+  transactionId String
+  text          String
+  createdAt     DateTime    @default(now())
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+}
