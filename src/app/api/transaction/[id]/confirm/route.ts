@@ -19,7 +19,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    await updateTransactionStatus(id, "SUCCESSFULLY_DELIVERED");
+    await updateTransactionStatus(id, "SUCCESSFULLY_DELIVERED", false, auth.transaction.buyerEmail as string);
     return NextResponse.json({ message: "Delivery confirmed" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to confirm delivery";

@@ -38,13 +38,28 @@ model Transaction {
   accessTokenSeller  String            @unique
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
-  comments           AdminComment[]
+  comments           Comment[]
+  auditLogs          AuditLog[]
 }
 
-model AdminComment {
+model Comment {
   id            String      @id @default(uuid())
   transactionId String
   text          String
+  author        String      @default("admin")
+  authorRole    String      @default("ADMIN")
+  createdAt     DateTime    @default(now())
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("AdminComment")
+}
+
+model AuditLog {
+  id            String      @id @default(uuid())
+  transactionId String
+  eventType     String
+  actor         String
+  detail        String?
   createdAt     DateTime    @default(now())
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }

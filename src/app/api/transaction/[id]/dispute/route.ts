@@ -19,7 +19,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    await updateTransactionStatus(id, "DISPUTED");
+    await updateTransactionStatus(id, "DISPUTED", false, auth.transaction.buyerEmail as string);
     return NextResponse.json({ message: "Complaint filed" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to file complaint";

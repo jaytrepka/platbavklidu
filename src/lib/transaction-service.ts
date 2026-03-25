@@ -4,6 +4,12 @@ import { sendEmail } from "./email";
 import { generateSpaydQrDataUrl } from "./spayd";
 import type { TransactionStatus } from "@prisma/client";
 
+async function logAudit(transactionId: string, eventType: string, actor: string, detail?: string) {
+  await prisma.auditLog.create({
+    data: { transactionId, eventType, actor, detail },
+  });
+}
+
 interface CreateTransactionInput {
   createdBy: "BUYER" | "SELLER";
   sellerEmail: string;
@@ -44,6 +50,9 @@ export async function createTransaction(input: CreateTransactionInput) {
       status: "WAITING_FOR_APPROVAL",
     },
   });
+
+  const creator = input.createdBy === "BUYER" ? input.buyerEmail : input.sellerEmail;
+  await logAudit(transaction.id, "CREATED", creator, `Transaction created by ${input.createdBy.toLowerCase()}. Amount: ${input.amount} CZK`);
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   const buyerLink = `${baseUrl}/transaction/${transaction.id}?token=${buyerToken}`;
@@ -152,6 +161,9 @@ export async function approveTransaction(
     });
   }
 
+  const approver = isBuyer ? transaction.buyerEmail : transaction.sellerEmail;
+  await logAudit(id, "STATUS_CHANGE", approver, `Approved. Status: WAITING_FOR_APPROVAL → WAITING_FOR_PAYMENT`);
+
   // Send payment instructions to buyer
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   const buyerLink = `${baseUrl}/transaction/${transaction.id}?token=${transaction.accessTokenBuyer}`;
@@ -207,13 +219,15 @@ export function isValidTransition(
 export async function updateTransactionStatus(
   id: string,
   newStatus: TransactionStatus,
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
+  actorEmail?: string
 ): Promise<void> {
   const transaction = await prisma.transaction.findUnique({ where: { id } });
   if (!transaction) throw new Error("Transaction not found");
 
+  const actor = isAdmin ? "admin" : (actorEmail || "system");
+
   if (isAdmin) {
-    // Admin can force certain transitions
     const adminAllowed =
       (newStatus === "PAID" && transaction.status === "WAITING_FOR_PAYMENT") ||
       (newStatus === "COMPLETED" &&
@@ -224,6 +238,7 @@ export async function updateTransactionStatus(
 
     if (adminAllowed) {
       await prisma.transaction.update({ where: { id }, data: { status: newStatus } });
+      await logAudit(id, "STATUS_CHANGE", actor, `${transaction.status} → ${newStatus}`);
       await sendStatusChangeEmails(id, newStatus);
       return;
     }
@@ -234,6 +249,7 @@ export async function updateTransactionStatus(
   }
 
   await prisma.transaction.update({ where: { id }, data: { status: newStatus } });
+  await logAudit(id, "STATUS_CHANGE", actor, `${transaction.status} → ${newStatus}`);
   await sendStatusChangeEmails(id, newStatus);
 }
 
@@ -249,6 +265,8 @@ export async function addTrackingId(id: string, trackingId?: string): Promise<vo
     data: { trackingId: trackingId || null, status: "SHIPPED" },
   });
 
+  const detail = trackingId ? `Shipped with tracking: ${trackingId}` : "Shipped without tracking number";
+  await logAudit(id, "STATUS_CHANGE", transaction.sellerEmail, `PAID → SHIPPED. ${detail}`);
   await sendStatusChangeEmails(id, "SHIPPED");
 }
 

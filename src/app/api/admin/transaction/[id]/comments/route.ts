@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendEmail } from "@/lib/email";
 import crypto from "crypto";
 
 function verifyAdmin(request: NextRequest): boolean {
@@ -32,8 +33,42 @@ export async function POST(
       );
     }
 
-    const comment = await prisma.adminComment.create({
-      data: { transactionId: id, text },
+    const transaction = await prisma.transaction.findUnique({ where: { id } });
+    if (!transaction) {
+      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+    }
+
+    const comment = await prisma.comment.create({
+      data: { transactionId: id, text, author: "admin", authorRole: "ADMIN" },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        transactionId: id,
+        eventType: "COMMENT",
+        actor: "admin",
+        detail: text,
+      },
+    });
+
+    // Email both buyer and seller
+    const emailBody = `Nový komentář od administrátora k vaší transakci:
+
+"${text}"
+
+${transaction.subject ? `Předmět transakce: ${transaction.subject}` : ""}
+Částka: ${transaction.amount} CZK`;
+
+    await sendEmail({
+      to: transaction.buyerEmail,
+      subject: "Platba v klidu – Komentář od administrátora",
+      body: emailBody,
+    });
+
+    await sendEmail({
+      to: transaction.sellerEmail,
+      subject: "Platba v klidu – Komentář od administrátora",
+      body: emailBody,
     });
 
     return NextResponse.json(comment, { status: 201 });

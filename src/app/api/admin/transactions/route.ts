@@ -26,7 +26,10 @@ export async function GET(request: NextRequest) {
     const transactions = await prisma.transaction.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: { comments: { orderBy: { createdAt: "desc" } } },
+      include: {
+        comments: { orderBy: { createdAt: "asc" } },
+        auditLogs: { orderBy: { createdAt: "asc" } },
+      },
     });
 
     return NextResponse.json(transactions);

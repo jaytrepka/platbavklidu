@@ -15,6 +15,8 @@ import {
   Ban,
   Info,
   Users,
+  MessageSquare,
+  Send,
 } from "lucide-react";
 import { getStatusLabel } from "@/i18n/translations";
 import Link from "next/link";
@@ -54,6 +56,22 @@ function TransactionContent({ id }: { id: string }) {
   );
   const [bankAccountInput, setBankAccountInput] = useState("");
   const [approvalSuccess, setApprovalSuccess] = useState(false);
+  const [comments, setComments] = useState<{ id: string; text: string; author: string; authorRole: string; createdAt: string }[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [commentLoading, setCommentLoading] = useState(false);
+
+  const fetchComments = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/transaction/${id}/comments?token=${token}`);
+      if (res.ok) {
+        const data = await res.json();
+        setComments(data);
+      }
+    } catch {
+      // silently fail
+    }
+  }, [id, token]);
 
   const authenticate = useCallback(async () => {
     if (!token) {
@@ -76,12 +94,13 @@ function TransactionContent({ id }: { id: string }) {
       const data = await res.json();
       setTransaction(data.transaction);
       setRole(data.role);
+      fetchComments();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errorOccurred"));
     } finally {
       setLoading(false);
     }
-  }, [id, token, t]);
+  }, [id, token, t, fetchComments]);
 
   useEffect(() => {
     authenticate();
@@ -97,8 +116,31 @@ function TransactionContent({ id }: { id: string }) {
       const data = await authRes.json();
       setTransaction(data.transaction);
       setRole(data.role);
+      fetchComments();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errorOccurred"));
+    }
+  }
+
+  async function handleAddComment() {
+    if (!commentText.trim() || !token) return;
+    setCommentLoading(true);
+    try {
+      const res = await fetch(`/api/transaction/${id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, text: commentText.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error);
+      }
+      setCommentText("");
+      fetchComments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errorOccurred"));
+    } finally {
+      setCommentLoading(false);
     }
   }
 
@@ -715,6 +757,59 @@ function TransactionContent({ id }: { id: string }) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Comments Section */}
+        <div className="mt-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-blue-100/50 dark:shadow-none p-6">
+          <h3 className="font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
+            <MessageSquare className="w-5 h-5 text-blue-600" />
+            {t("comments")}
+          </h3>
+
+          {/* Add comment */}
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && commentText.trim()) handleAddComment(); }}
+              placeholder={t("writeComment")}
+              className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <button
+              onClick={handleAddComment}
+              disabled={commentLoading || !commentText.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {commentLoading ? t("loading") : <Send className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {/* Comment list */}
+          {comments.length === 0 ? (
+            <p className="text-gray-400 dark:text-gray-500 text-sm">{t("noComments")}</p>
+          ) : (
+            <div className="space-y-3">
+              {comments.map((c) => {
+                const isMe = (role === "buyer" && c.authorRole === "BUYER") || (role === "seller" && c.authorRole === "SELLER");
+                const roleLabel = c.authorRole === "BUYER" ? t("commentByBuyer") : c.authorRole === "SELLER" ? t("commentBySeller") : t("commentByAdmin");
+                const roleBg = c.authorRole === "ADMIN" ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800" : isMe ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800" : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600";
+                return (
+                  <div key={c.id} className={`rounded-lg p-3 border ${roleBg}`}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                        {roleLabel} {isMe && `(${t("you")})`}
+                      </span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {new Date(c.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-900 dark:text-gray-200">{c.text}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </main>
 

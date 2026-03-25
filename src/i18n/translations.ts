@@ -60,7 +60,13 @@ const translations = {
     comments: "Komentáře",
     noComments: "Žádné komentáře",
     internalComment: "Interní komentář",
+    writeComment: "Napište komentář...",
+    commentByBuyer: "Kupující",
+    commentBySeller: "Prodávající",
+    commentByAdmin: "Administrátor",
     save: "Uložit",
+    history: "Historie",
+    noHistory: "Žádná historie",
     
     // Messages
     errorOccurred: "Došlo k chybě",
@@ -194,7 +200,13 @@ const translations = {
     comments: "Comments",
     noComments: "No comments",
     internalComment: "Internal comment",
+    writeComment: "Write a comment...",
+    commentByBuyer: "Buyer",
+    commentBySeller: "Seller",
+    commentByAdmin: "Administrator",
     save: "Save",
+    history: "History",
+    noHistory: "No history",
     
     errorOccurred: "An error occurred",
     loading: "Loading...",

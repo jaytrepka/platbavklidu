@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use, useCallback } from "react";
 import { useI18n } from "@/i18n/context";
-import { Shield, ArrowLeft, MessageSquare, RefreshCw } from "lucide-react";
+import { Shield, ArrowLeft, MessageSquare, RefreshCw, Clock } from "lucide-react";
 import { getStatusLabel } from "@/i18n/translations";
 import Link from "next/link";
 
@@ -18,9 +18,19 @@ const STATUSES = [
   "EXPIRED",
 ];
 
-interface AdminComment {
+interface Comment {
   id: string;
   text: string;
+  author: string;
+  authorRole: string;
+  createdAt: string;
+}
+
+interface AuditLogEntry {
+  id: string;
+  eventType: string;
+  actor: string;
+  detail: string | null;
   createdAt: string;
 }
 
@@ -34,11 +44,11 @@ interface TransactionDetail {
   description: string | null;
   status: string;
   trackingId: string | null;
-  pinCodeBuyer: string;
-  pinCodeSeller: string;
+  createdBy: string;
   createdAt: string;
   updatedAt: string;
-  comments: AdminComment[];
+  comments: Comment[];
+  auditLogs: AuditLogEntry[];
 }
 
 export default function AdminTransactionDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -328,6 +338,7 @@ export default function AdminTransactionDetailPage({ params }: { params: Promise
               type="text"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && comment.trim()) handleAddComment(); }}
               placeholder={t("internalComment")}
               className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
             />
@@ -344,14 +355,72 @@ export default function AdminTransactionDetailPage({ params }: { params: Promise
             <p className="text-gray-500 text-sm">{t("noComments")}</p>
           ) : (
             <div className="space-y-2">
-              {transaction.comments.map((c) => (
-                <div key={c.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                  <p className="text-sm">{c.text}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {new Date(c.createdAt).toLocaleString()}
-                  </p>
-                </div>
-              ))}
+              {transaction.comments.map((c) => {
+                const roleBg = c.authorRole === "ADMIN"
+                  ? "bg-yellow-50 dark:bg-yellow-900/20"
+                  : c.authorRole === "BUYER"
+                  ? "bg-blue-50 dark:bg-blue-900/20"
+                  : "bg-green-50 dark:bg-green-900/20";
+                const roleLabel = c.authorRole === "ADMIN"
+                  ? t("commentByAdmin")
+                  : c.authorRole === "BUYER"
+                  ? `${t("commentByBuyer")} (${c.author})`
+                  : `${t("commentBySeller")} (${c.author})`;
+                return (
+                  <div key={c.id} className={`rounded-lg p-3 ${roleBg}`}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{roleLabel}</span>
+                      <span className="text-xs text-gray-500">{new Date(c.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-sm">{c.text}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* History / Audit Log */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+          <h3 className="font-bold mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-blue-600" />
+            {t("history")}
+          </h3>
+
+          {transaction.auditLogs.length === 0 ? (
+            <p className="text-gray-500 text-sm">{t("noHistory")}</p>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-600" />
+              <div className="space-y-4">
+                {transaction.auditLogs.map((log) => {
+                  const isStatusChange = log.eventType === "STATUS_CHANGE" || log.eventType === "CREATED";
+                  const isComment = log.eventType === "COMMENT";
+                  const dotColor = isStatusChange
+                    ? "bg-blue-500"
+                    : isComment
+                    ? "bg-green-500"
+                    : "bg-gray-400";
+                  return (
+                    <div key={log.id} className="relative pl-8">
+                      <div className={`absolute left-1.5 top-1.5 w-3 h-3 rounded-full ${dotColor} ring-2 ring-white dark:ring-gray-800`} />
+                      <div className="text-sm">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            {log.actor === "admin" ? t("commentByAdmin") : log.actor}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(log.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        {log.detail && (
+                          <p className="text-gray-600 dark:text-gray-400 mt-0.5">{log.detail}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
