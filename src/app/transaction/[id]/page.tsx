@@ -47,6 +47,7 @@ function TransactionContent({ id }: { id: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [trackingInput, setTrackingInput] = useState("");
+  const [noTracking, setNoTracking] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState<"deliver" | "dispute" | null>(
     null
@@ -131,13 +132,13 @@ function TransactionContent({ id }: { id: string }) {
   }
 
   async function handleShip() {
-    if (!trackingInput.trim()) return;
+    if (!noTracking && !trackingInput.trim()) return;
     setActionLoading(true);
     try {
       const res = await fetch(`/api/transaction/${id}/ship`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, trackingId: trackingInput.trim() }),
+        body: JSON.stringify({ token, trackingId: noTracking ? undefined : trackingInput.trim() }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -609,27 +610,38 @@ function TransactionContent({ id }: { id: string }) {
 
             {/* PAID — Seller: Add tracking ID */}
             {role === "seller" && transaction.status === "PAID" && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
-                <h3 className="font-medium mb-3 flex items-center gap-2 text-gray-900 dark:text-white">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 space-y-3">
+                <h3 className="font-medium flex items-center gap-2 text-gray-900 dark:text-white">
                   <Package className="w-5 h-5 text-blue-600" />
                   {t("enterTrackingId")}
                 </h3>
-                <div className="flex gap-2">
+                {!noTracking && (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={trackingInput}
+                      onChange={(e) => setTrackingInput(e.target.value)}
+                      placeholder={t("trackingId")}
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
                   <input
-                    type="text"
-                    value={trackingInput}
-                    onChange={(e) => setTrackingInput(e.target.value)}
-                    placeholder={t("trackingId")}
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    type="checkbox"
+                    checked={noTracking}
+                    onChange={(e) => setNoTracking(e.target.checked)}
+                    className="rounded border-gray-300 dark:border-gray-600"
                   />
-                  <button
-                    onClick={handleShip}
-                    disabled={actionLoading || !trackingInput.trim()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                  >
-                    {actionLoading ? t("loading") : t("confirmShipment")}
-                  </button>
-                </div>
+                  {t("noTrackingNumber")}
+                </label>
+                <button
+                  onClick={handleShip}
+                  disabled={actionLoading || (!noTracking && !trackingInput.trim())}
+                  className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {actionLoading ? t("loading") : t("confirmShipment")}
+                </button>
               </div>
             )}
 

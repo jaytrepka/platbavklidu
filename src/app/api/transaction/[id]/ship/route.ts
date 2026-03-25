@@ -10,8 +10,8 @@ export async function POST(
     const body = await request.json();
     const { token, trackingId } = body;
 
-    if (!token || !trackingId) {
-      return NextResponse.json({ error: "Token and trackingId are required" }, { status: 400 });
+    if (!token) {
+      return NextResponse.json({ error: "Token is required" }, { status: 400 });
     }
 
     const auth = await getTransactionForUser(id, token);

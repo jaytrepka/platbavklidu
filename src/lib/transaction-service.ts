@@ -237,7 +237,7 @@ export async function updateTransactionStatus(
   await sendStatusChangeEmails(id, newStatus);
 }
 
-export async function addTrackingId(id: string, trackingId: string): Promise<void> {
+export async function addTrackingId(id: string, trackingId?: string): Promise<void> {
   const transaction = await prisma.transaction.findUnique({ where: { id } });
   if (!transaction) throw new Error("Transaction not found");
   if (transaction.status !== "PAID") {
@@ -246,7 +246,7 @@ export async function addTrackingId(id: string, trackingId: string): Promise<voi
 
   await prisma.transaction.update({
     where: { id },
-    data: { trackingId, status: "SHIPPED" },
+    data: { trackingId: trackingId || null, status: "SHIPPED" },
   });
 
   await sendStatusChangeEmails(id, "SHIPPED");
