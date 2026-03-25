@@ -2,8 +2,8 @@
 
 import { useI18n } from "@/i18n/context";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Logo } from "@/components/Logo";
 import {
-  Shield,
   ArrowLeft,
   CheckCircle,
   AlertTriangle,
@@ -29,7 +29,7 @@ export default function TermsPage() {
       {/* Header */}
       <header className="mx-auto flex max-w-4xl items-center justify-between p-6">
         <div className="flex items-center gap-3">
-          <Shield className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          <Logo size={32} />
           <span className="text-xl font-bold text-gray-900 dark:text-white">
             {t("appName")}
           </span>

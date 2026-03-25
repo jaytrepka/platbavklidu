@@ -2,7 +2,8 @@
 
 import { useState, useEffect, use, useCallback } from "react";
 import { useI18n } from "@/i18n/context";
-import { Shield, ArrowLeft, MessageSquare, RefreshCw, Clock } from "lucide-react";
+import { Logo } from "@/components/Logo";
+import { ArrowLeft, MessageSquare, RefreshCw, Clock } from "lucide-react";
 import { getStatusLabel } from "@/i18n/translations";
 import Link from "next/link";
 
@@ -169,7 +170,7 @@ export default function AdminTransactionDetailPage({ params }: { params: Promise
           <Link href="/admin" className="text-gray-500 hover:text-gray-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <Shield className="w-6 h-6 text-blue-600" />
+          <Logo size={24} />
           <h1 className="text-lg font-bold">{t("transactionDetail")}</h1>
         </div>
       </header>

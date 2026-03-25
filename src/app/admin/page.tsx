@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/i18n/context";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Shield, LogOut, Filter } from "lucide-react";
+import { Logo } from "@/components/Logo";
+import { LogOut, Filter } from "lucide-react";
 import { getStatusLabel } from "@/i18n/translations";
 import Link from "next/link";
 
@@ -120,7 +121,7 @@ export default function AdminPage() {
         <div className="max-w-md w-full mx-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
             <div className="flex items-center gap-3 mb-6">
-              <Shield className="w-8 h-8 text-blue-600" />
+              <Logo size={32} />
               <h1 className="text-xl font-bold">{t("adminLogin")}</h1>
             </div>
             {loginError && (
@@ -158,7 +159,7 @@ export default function AdminPage() {
       <header className="bg-white dark:bg-gray-800 shadow-sm p-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <Shield className="w-6 h-6 text-blue-600" />
+            <Logo size={24} />
             <h1 className="text-lg font-bold">{t("appName")} – {t("admin")}</h1>
           </div>
           <div className="flex items-center gap-4">

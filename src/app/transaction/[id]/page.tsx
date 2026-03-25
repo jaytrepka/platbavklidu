@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, use, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/i18n/context";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Logo } from "@/components/Logo";
 import {
-  Shield,
   Package,
   CheckCircle,
   AlertTriangle,
@@ -284,7 +284,7 @@ function TransactionContent({ id }: { id: string }) {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <header className="p-6 flex justify-between items-center max-w-4xl mx-auto">
           <div className="flex items-center gap-3">
-            <Shield className="w-8 h-8 text-blue-600" />
+            <Logo size={32} />
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
               {t("appName")}
             </h1>
@@ -304,7 +304,7 @@ function TransactionContent({ id }: { id: string }) {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <header className="p-6 flex justify-between items-center max-w-4xl mx-auto">
           <div className="flex items-center gap-3">
-            <Shield className="w-8 h-8 text-blue-600" />
+            <Logo size={32} />
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
               {t("appName")}
             </h1>
@@ -359,7 +359,7 @@ function TransactionContent({ id }: { id: string }) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <header className="p-6 flex justify-between items-center max-w-4xl mx-auto">
         <div className="flex items-center gap-3">
-          <Shield className="w-8 h-8 text-blue-600" />
+          <Logo size={32} />
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">
             {t("appName")}
           </h1>

@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/context";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Shield, ArrowRight, CheckCircle, Info, TrendingUp, BarChart3 } from "lucide-react";
+import { Logo } from "@/components/Logo";
+import { ArrowRight, CheckCircle, Info, TrendingUp, BarChart3 } from "lucide-react";
 
 export default function HomePage() {
   const { t } = useI18n();
@@ -89,7 +90,7 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-850 dark:to-gray-800">
       <header className="p-6 flex justify-between items-center max-w-4xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <Shield className="w-8 h-8 text-blue-600" />
+          <Logo size={32} />
           <div>
             <h1 className="text-xl font-bold">{t("appName")}</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">{t("appDescription")}</p>
@@ -108,7 +109,7 @@ export default function HomePage() {
             {t("appDescription")}
           </p>
           <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-4 py-2 rounded-full text-sm font-medium">
-            <Shield className="w-4 h-4" />
+            <Logo size={16} />
             Bezpečná platba
           </div>
         </div>
