@@ -8,12 +8,15 @@ import { getStatusLabel } from "@/i18n/translations";
 import Link from "next/link";
 
 const STATUSES = [
+  "WAITING_FOR_APPROVAL",
   "WAITING_FOR_PAYMENT",
   "PAID",
   "SHIPPED",
   "SUCCESSFULLY_DELIVERED",
   "DISPUTED",
   "COMPLETED",
+  "REFUNDED",
+  "EXPIRED",
 ];
 
 interface Transaction {
@@ -100,12 +103,15 @@ export default function AdminPage() {
   }
 
   const statusColors: Record<string, string> = {
+    WAITING_FOR_APPROVAL: "bg-orange-100 text-orange-800",
     WAITING_FOR_PAYMENT: "bg-yellow-100 text-yellow-800",
     PAID: "bg-blue-100 text-blue-800",
     SHIPPED: "bg-purple-100 text-purple-800",
     SUCCESSFULLY_DELIVERED: "bg-green-100 text-green-800",
     DISPUTED: "bg-red-100 text-red-800",
     COMPLETED: "bg-gray-100 text-gray-800",
+    REFUNDED: "bg-pink-100 text-pink-800",
+    EXPIRED: "bg-gray-200 text-gray-600",
   };
 
   if (!token) {

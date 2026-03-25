@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, useEffect, useCallback, use, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/i18n/context";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import {
@@ -31,37 +32,40 @@ interface TransactionData {
   qrCodeDataUrl?: string | null;
   buyerEmail?: string;
   sellerBankAccount?: string;
+  needsApproval?: boolean;
+  needsBankAccount?: boolean;
+  waitingForOtherApproval?: boolean;
 }
 
-export default function TransactionPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+function TransactionContent({ id }: { id: string }) {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
   const { t, locale } = useI18n();
-  const [email, setEmail] = useState("");
-  const [pin, setPin] = useState("");
+
   const [role, setRole] = useState<"buyer" | "seller" | null>(null);
   const [transaction, setTransaction] = useState<TransactionData | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [trackingInput, setTrackingInput] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
-  const [showConfirm, setShowConfirm] = useState<
-    "deliver" | "dispute" | null
-  >(null);
+  const [showConfirm, setShowConfirm] = useState<"deliver" | "dispute" | null>(
+    null
+  );
+  const [bankAccountInput, setBankAccountInput] = useState("");
+  const [approvalSuccess, setApprovalSuccess] = useState(false);
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  const authenticate = useCallback(async () => {
+    if (!token) {
+      setError(t("invalidCredentials"));
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch(`/api/transaction/${id}/auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, pin }),
+        body: JSON.stringify({ token }),
       });
 
       if (!res.ok) {
@@ -76,6 +80,54 @@ export default function TransactionPage({
     } finally {
       setLoading(false);
     }
+  }, [id, token, t]);
+
+  useEffect(() => {
+    authenticate();
+  }, [authenticate]);
+
+  async function refreshTransaction() {
+    try {
+      const authRes = await fetch(`/api/transaction/${id}/auth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data = await authRes.json();
+      setTransaction(data.transaction);
+      setRole(data.role);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errorOccurred"));
+    }
+  }
+
+  async function handleApprove() {
+    setActionLoading(true);
+    setError("");
+    try {
+      const body: Record<string, string> = { token: token! };
+      if (bankAccountInput.trim()) {
+        body.bankAccount = bankAccountInput.trim();
+      }
+
+      const res = await fetch(`/api/transaction/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error);
+      }
+
+      setApprovalSuccess(true);
+      await refreshTransaction();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("errorOccurred"));
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function handleShip() {
@@ -85,19 +137,13 @@ export default function TransactionPage({
       const res = await fetch(`/api/transaction/${id}/ship`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, pin, trackingId: trackingInput.trim() }),
+        body: JSON.stringify({ token, trackingId: trackingInput.trim() }),
       });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error);
       }
-      const authRes = await fetch(`/api/transaction/${id}/auth`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, pin }),
-      });
-      const data = await authRes.json();
-      setTransaction(data.transaction);
+      await refreshTransaction();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errorOccurred"));
     } finally {
@@ -111,19 +157,13 @@ export default function TransactionPage({
       const res = await fetch(`/api/transaction/${id}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, pin }),
+        body: JSON.stringify({ token }),
       });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error);
       }
-      const authRes = await fetch(`/api/transaction/${id}/auth`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, pin }),
-      });
-      const data = await authRes.json();
-      setTransaction(data.transaction);
+      await refreshTransaction();
       setShowConfirm(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errorOccurred"));
@@ -138,19 +178,13 @@ export default function TransactionPage({
       const res = await fetch(`/api/transaction/${id}/dispute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, pin }),
+        body: JSON.stringify({ token }),
       });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error);
       }
-      const authRes = await fetch(`/api/transaction/${id}/auth`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, pin }),
-      });
-      const data = await authRes.json();
-      setTransaction(data.transaction);
+      await refreshTransaction();
       setShowConfirm(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("errorOccurred"));
@@ -163,6 +197,10 @@ export default function TransactionPage({
     string,
     { bg: string; icon: React.ReactNode }
   > = {
+    WAITING_FOR_APPROVAL: {
+      bg: "bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-300",
+      icon: <Clock className="w-6 h-6" />,
+    },
     WAITING_FOR_PAYMENT: {
       bg: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300",
       icon: <Clock className="w-6 h-6" />,
@@ -187,14 +225,37 @@ export default function TransactionPage({
       bg: "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
       icon: <CheckCircle className="w-6 h-6" />,
     },
+    REFUNDED: {
+      bg: "bg-pink-100 text-pink-900 dark:bg-pink-900/40 dark:text-pink-300",
+      icon: <Ban className="w-6 h-6" />,
+    },
+    EXPIRED: {
+      bg: "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
+      icon: <Clock className="w-6 h-6" />,
+    },
   };
 
-  const otherPartyEmail =
-    role === "buyer"
-      ? transaction?.sellerEmail
-      : transaction?.buyerEmail;
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <header className="p-6 flex justify-between items-center max-w-4xl mx-auto">
+          <div className="flex items-center gap-3">
+            <Shield className="w-8 h-8 text-blue-600" />
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              {t("appName")}
+            </h1>
+          </div>
+          <LanguageSwitcher />
+        </header>
+        <main className="max-w-md mx-auto px-6 py-12 text-center">
+          <p className="text-gray-500">{t("loading")}</p>
+        </main>
+      </div>
+    );
+  }
 
-  // Login form
+  // Error state (no token or invalid token)
   if (!transaction || !role) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -209,52 +270,14 @@ export default function TransactionPage({
         </header>
 
         <main className="max-w-md mx-auto px-6 py-12">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-blue-100/50 dark:shadow-none p-8">
-            <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">
-              {t("loginToTransaction")}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-blue-100/50 dark:shadow-none p-8 text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">
+              {t("invalidCredentials")}
             </h2>
-
             {error && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
-                {error}
-              </div>
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                  {t("email")}
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                  {t("pin")}
-                </label>
-                <input
-                  type="text"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  required
-                  maxLength={6}
-                  pattern="[0-9]{6}"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              >
-                {loading ? t("loading") : t("login")}
-              </button>
-            </form>
           </div>
         </main>
 
@@ -276,6 +299,9 @@ export default function TransactionPage({
     );
   }
 
+  const otherPartyEmail =
+    role === "buyer" ? transaction.sellerEmail : transaction.buyerEmail;
+
   const cfg = statusConfig[transaction.status] ?? {
     bg: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
     icon: <Info className="w-6 h-6" />,
@@ -283,7 +309,7 @@ export default function TransactionPage({
 
   const totalAmount = transaction.amount;
   const amountWithoutFee = Math.round((totalAmount / 1.01) * 100) / 100;
-  const fee = Math.round((totalAmount - amountWithoutFee) * 100) / 100;
+  const feeAmount = Math.round((totalAmount - amountWithoutFee) * 100) / 100;
 
   // Transaction detail
   return (
@@ -327,6 +353,97 @@ export default function TransactionPage({
               </div>
             )}
 
+            {approvalSuccess && (
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-sm">
+                {t("transactionApproved")}
+              </div>
+            )}
+
+            {/* Approval UI */}
+            {transaction.needsApproval && (
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-300 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5" />
+                  {t("approveTransaction")}
+                </h3>
+
+                {/* Transaction summary for approval */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 space-y-2 text-sm">
+                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                    <span>{t("amount")}</span>
+                    <span className="font-bold">
+                      {transaction.amount.toLocaleString()} CZK
+                    </span>
+                  </div>
+                  {transaction.subject && (
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                      <span>{t("subject")}</span>
+                      <span>{transaction.subject}</span>
+                    </div>
+                  )}
+                  {transaction.description && (
+                    <div className="text-gray-600 dark:text-gray-400">
+                      <span>{t("description")}: </span>
+                      <span>{transaction.description}</span>
+                    </div>
+                  )}
+                  {otherPartyEmail && (
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                      <span>{t("otherParty")}</span>
+                      <span>{otherPartyEmail}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bank account input for seller approving buyer-created tx */}
+                {transaction.needsBankAccount && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-gray-300">
+                      {t("enterBankAccount")}
+                    </label>
+                    <input
+                      type="text"
+                      value={bankAccountInput}
+                      onChange={(e) => setBankAccountInput(e.target.value)}
+                      placeholder="CZ..."
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+
+                <button
+                  onClick={handleApprove}
+                  disabled={
+                    actionLoading ||
+                    (transaction.needsBankAccount === true &&
+                      !bankAccountInput.trim())
+                  }
+                  className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {actionLoading
+                    ? t("loading")
+                    : transaction.needsBankAccount
+                    ? t("approveAndEnterBank")
+                    : t("approveTransaction")}
+                </button>
+              </div>
+            )}
+
+            {/* Waiting for other party approval */}
+            {transaction.waitingForOtherApproval && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 flex items-start gap-4">
+                <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-bold text-blue-900 dark:text-blue-300">
+                    {t("waitingForApproval")}
+                  </h3>
+                  <p className="text-sm text-blue-800 dark:text-blue-400 mt-1">
+                    {t("waitingForOtherParty")}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Participants */}
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-5">
               <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
@@ -339,7 +456,9 @@ export default function TransactionPage({
                     {t("you")} ({role === "buyer" ? t("buyer") : t("seller")})
                   </span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {email}
+                    {role === "buyer"
+                      ? transaction.buyerEmail
+                      : transaction.sellerEmail}
                   </span>
                 </div>
                 {otherPartyEmail && (
@@ -432,7 +551,7 @@ export default function TransactionPage({
                           <Info className="w-3.5 h-3.5 text-gray-400" />
                         </span>
                       </span>
-                      <span>{fee.toLocaleString()} CZK</span>
+                      <span>{feeAmount.toLocaleString()} CZK</span>
                     </div>
                     <div className="flex justify-between font-bold text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-600 pt-2">
                       <span>{t("totalAmount")}</span>
@@ -582,5 +701,25 @@ export default function TransactionPage({
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function TransactionPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      }
+    >
+      <TransactionContent id={id} />
+    </Suspense>
   );
 }

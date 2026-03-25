@@ -13,8 +13,9 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [createdId, setCreatedId] = useState("");
   const [amount, setAmount] = useState<number>(0);
+  const [createdBy, setCreatedBy] = useState<"BUYER" | "SELLER">("BUYER");
 
-  const fee = Math.round(amount * 0.01 * 100) / 100;
+  const fee = Math.round(Math.max(amount * 0.01, 10) * 100) / 100;
   const total = Math.round((amount + fee) * 100) / 100;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -23,14 +24,17 @@ export default function HomePage() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
-    const data = {
+    const data: Record<string, unknown> = {
       sellerEmail: formData.get("sellerEmail") as string,
-      sellerBankAccount: formData.get("sellerBankAccount") as string,
       buyerEmail: formData.get("buyerEmail") as string,
       amount: parseFloat(formData.get("amount") as string),
       subject: (formData.get("subject") as string) || undefined,
       description: (formData.get("description") as string) || undefined,
+      createdBy,
     };
+    if (createdBy === "SELLER") {
+      data.sellerBankAccount = formData.get("sellerBankAccount") as string;
+    }
 
     try {
       const res = await fetch("/api/transactions", {
@@ -118,6 +122,32 @@ export default function HomePage() {
             <ArrowRight className="w-5 h-5 text-blue-600" />
           </h2>
 
+          {/* Buyer / Seller toggle */}
+          <div className="flex gap-2 mb-6">
+            <button
+              type="button"
+              onClick={() => setCreatedBy("BUYER")}
+              className={`flex-1 py-2.5 rounded-xl font-medium transition-all ${
+                createdBy === "BUYER"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+              }`}
+            >
+              {t("iAmBuyer")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreatedBy("SELLER")}
+              className={`flex-1 py-2.5 rounded-xl font-medium transition-all ${
+                createdBy === "SELLER"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+              }`}
+            >
+              {t("iAmSeller")}
+            </button>
+          </div>
+
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm">
               {error}
@@ -147,16 +177,18 @@ export default function HomePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1.5">{t("sellerBankAccount")}</label>
-                <input
-                  type="text"
-                  name="sellerBankAccount"
-                  required
-                  placeholder="CZ..."
-                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-                />
-              </div>
+              {createdBy === "SELLER" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">{t("sellerBankAccount")}</label>
+                  <input
+                    type="text"
+                    name="sellerBankAccount"
+                    required
+                    placeholder="CZ..."
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1.5">{t("amount")}</label>
                 <input
@@ -194,6 +226,11 @@ export default function HomePage() {
                   </span>
                   <span>{total.toFixed(2)} CZK</span>
                 </div>
+                {fee === 10 && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    {t("minFeeNotice")}
+                  </p>
+                )}
               </div>
             )}
 

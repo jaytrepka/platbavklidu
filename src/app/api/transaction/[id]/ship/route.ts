@@ -8,25 +8,18 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { email, pin, trackingId } = body;
+    const { token, trackingId } = body;
 
-    if (!email || !pin || !trackingId) {
-      return NextResponse.json(
-        { error: "Email, PIN, and trackingId are required" },
-        { status: 400 }
-      );
+    if (!token || !trackingId) {
+      return NextResponse.json({ error: "Token and trackingId are required" }, { status: 400 });
     }
 
-    const auth = await getTransactionForUser(id, email, pin);
+    const auth = await getTransactionForUser(id, token);
     if (!auth || auth.role !== "seller") {
-      return NextResponse.json(
-        { error: "Unauthorized. Only the seller can add a tracking ID." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     await addTrackingId(id, trackingId);
-
     return NextResponse.json({ message: "Tracking ID added, status changed to SHIPPED" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to add tracking ID";

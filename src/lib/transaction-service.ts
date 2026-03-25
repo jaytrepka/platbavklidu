@@ -1,59 +1,164 @@
 import { prisma } from "./prisma";
-import { generatePin, hashPin } from "./pin";
+import { generateAccessToken, calculateFee, calculateTotalAmount } from "./pin";
 import { sendEmail } from "./email";
 import { generateSpaydQrDataUrl } from "./spayd";
 import type { TransactionStatus } from "@prisma/client";
 
 interface CreateTransactionInput {
+  createdBy: "BUYER" | "SELLER";
   sellerEmail: string;
-  sellerBankAccount: string;
+  sellerBankAccount?: string;
   buyerEmail: string;
   amount: number;
   subject?: string;
   description?: string;
 }
 
-interface CreateTransactionResult {
-  id: string;
-  buyerPin: string;
-  sellerPin: string;
-}
-
 const VALID_TRANSITIONS: Record<TransactionStatus, TransactionStatus[]> = {
-  WAITING_FOR_PAYMENT: ["PAID"],
+  WAITING_FOR_APPROVAL: ["WAITING_FOR_PAYMENT", "EXPIRED"],
+  WAITING_FOR_PAYMENT: ["PAID", "EXPIRED"],
   PAID: ["SHIPPED"],
   SHIPPED: ["SUCCESSFULLY_DELIVERED", "DISPUTED"],
   SUCCESSFULLY_DELIVERED: ["COMPLETED"],
-  DISPUTED: ["COMPLETED"],
+  DISPUTED: ["COMPLETED", "REFUNDED"],
   COMPLETED: [],
+  REFUNDED: [],
+  EXPIRED: [],
 };
 
-export async function createTransaction(
-  input: CreateTransactionInput
-): Promise<CreateTransactionResult> {
-  const buyerPin = generatePin();
-  const sellerPin = generatePin();
+export async function createTransaction(input: CreateTransactionInput) {
+  const buyerToken = generateAccessToken();
+  const sellerToken = generateAccessToken();
 
   const transaction = await prisma.transaction.create({
     data: {
+      createdBy: input.createdBy,
       sellerEmail: input.sellerEmail,
-      sellerBankAccount: input.sellerBankAccount,
+      sellerBankAccount: input.createdBy === "SELLER" ? (input.sellerBankAccount || null) : null,
       buyerEmail: input.buyerEmail,
       amount: input.amount,
       subject: input.subject || null,
       description: input.description || null,
-      pinCodeBuyer: hashPin(buyerPin),
-      pinCodeSeller: hashPin(sellerPin),
+      accessTokenBuyer: buyerToken,
+      accessTokenSeller: sellerToken,
+      status: "WAITING_FOR_APPROVAL",
     },
   });
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-  const transactionUrl = `${baseUrl}/transaction/${transaction.id}`;
+  const buyerLink = `${baseUrl}/transaction/${transaction.id}?token=${buyerToken}`;
+  const sellerLink = `${baseUrl}/transaction/${transaction.id}?token=${sellerToken}`;
 
-  // Generate SPAYD QR code for buyer
+  const fee = calculateFee(input.amount);
+  const totalAmount = calculateTotalAmount(input.amount);
+
+  if (input.createdBy === "BUYER") {
+    // Buyer created → email buyer their link, email seller to approve + enter bank account
+    await sendEmail({
+      to: input.buyerEmail,
+      subject: "Platba v klidu – Transakce vytvořena",
+      body: `Vytvořili jste novou escrow transakci.
+
+Částka obchodu: ${input.amount} CZK
+Servisní poplatek: ${fee} CZK
+Celková částka: ${totalAmount} CZK
+${input.subject ? `Předmět: ${input.subject}` : ""}
+
+Čekáme na schválení prodávajícím. Po schválení obdržíte pokyny k platbě.
+
+Váš odkaz na transakci: ${buyerLink}`,
+    });
+
+    await sendEmail({
+      to: input.sellerEmail,
+      subject: "Platba v klidu – Schválte transakci",
+      body: `Kupující vytvořil novou escrow transakci a čeká na vaše schválení.
+
+Částka obchodu: ${input.amount} CZK
+${input.subject ? `Předmět: ${input.subject}` : ""}
+
+Pro schválení klikněte na odkaz níže a zadejte číslo svého bankovního účtu:
+${sellerLink}
+
+⚠️ NEODESÍLEJTE ZBOŽÍ dokud neobdržíte potvrzení o zaplacení.`,
+    });
+  } else {
+    // Seller created → email seller their link, email buyer to approve
+    await sendEmail({
+      to: input.sellerEmail,
+      subject: "Platba v klidu – Transakce vytvořena",
+      body: `Vytvořili jste novou escrow transakci.
+
+Částka obchodu: ${input.amount} CZK
+${input.subject ? `Předmět: ${input.subject}` : ""}
+
+Čekáme na schválení kupujícím. Po schválení a zaplacení budete vyzváni k odeslání zboží.
+
+Váš odkaz na transakci: ${sellerLink}`,
+    });
+
+    await sendEmail({
+      to: input.buyerEmail,
+      subject: "Platba v klidu – Schválte transakci",
+      body: `Prodávající vytvořil novou escrow transakci a čeká na vaše schválení.
+
+Částka obchodu: ${input.amount} CZK
+Servisní poplatek: ${fee} CZK
+Celková částka k úhradě: ${totalAmount} CZK
+${input.subject ? `Předmět: ${input.subject}` : ""}
+
+Pro schválení klikněte na odkaz níže:
+${buyerLink}`,
+    });
+  }
+
+  return { id: transaction.id };
+}
+
+export async function approveTransaction(
+  id: string,
+  token: string,
+  bankAccount?: string
+): Promise<void> {
+  const transaction = await prisma.transaction.findUnique({ where: { id } });
+  if (!transaction) throw new Error("Transaction not found");
+  if (transaction.status !== "WAITING_FOR_APPROVAL") {
+    throw new Error("Transaction is not waiting for approval");
+  }
+
+  const isBuyer = transaction.accessTokenBuyer === token;
+  const isSeller = transaction.accessTokenSeller === token;
+  if (!isBuyer && !isSeller) throw new Error("Invalid token");
+
+  // The approver must be the OTHER party (not the creator)
+  if (
+    (transaction.createdBy === "BUYER" && isBuyer) ||
+    (transaction.createdBy === "SELLER" && isSeller)
+  ) {
+    throw new Error("The creator cannot approve their own transaction");
+  }
+
+  // If buyer created, seller must provide bank account
+  if (transaction.createdBy === "BUYER" && isSeller) {
+    if (!bankAccount) throw new Error("Bank account is required for approval");
+    await prisma.transaction.update({
+      where: { id },
+      data: { status: "WAITING_FOR_PAYMENT", sellerBankAccount: bankAccount },
+    });
+  } else {
+    await prisma.transaction.update({
+      where: { id },
+      data: { status: "WAITING_FOR_PAYMENT" },
+    });
+  }
+
+  // Send payment instructions to buyer
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  const buyerLink = `${baseUrl}/transaction/${transaction.id}?token=${transaction.accessTokenBuyer}`;
   const escrowIban = process.env.ESCROW_IBAN || "CZ0000000000000000000000";
-  const totalAmount = Math.round(input.amount * 1.01 * 100) / 100;
-  const fee = Math.round(input.amount * 0.01 * 100) / 100;
+  const totalAmount = calculateTotalAmount(transaction.amount);
+  const fee = calculateFee(transaction.amount);
+
   const qrDataUrl = await generateSpaydQrDataUrl({
     iban: escrowIban,
     amount: totalAmount,
@@ -61,45 +166,35 @@ export async function createTransaction(
     variableSymbol: transaction.id.replace(/-/g, "").substring(0, 10),
   });
 
-  // Email to buyer
   await sendEmail({
-    to: input.buyerEmail,
-    subject: "Platba v klidu – Nová transakce vytvořena",
-    body: `Byla vytvořena nová escrow transakce.
+    to: transaction.buyerEmail,
+    subject: "Platba v klidu – Transakce schválena, zaplaťte prosím",
+    body: `Transakce byla schválena oběma stranami!
 
-Částka obchodu: ${input.amount} CZK
-Servisní poplatek (1 %): ${fee} CZK
+Částka obchodu: ${transaction.amount} CZK
+Servisní poplatek: ${fee} CZK
 Celková částka k úhradě: ${totalAmount} CZK
-${input.subject ? `Předmět: ${input.subject}` : ""}
-
-Váš PIN pro přístup k transakci: ${buyerPin}
-Odkaz na transakci: ${transactionUrl}
+${transaction.subject ? `Předmět: ${transaction.subject}` : ""}
 
 QR kód pro platbu (SPAYD): ${qrDataUrl}
 
-Prosím uhraďte částku na escrow účet. Po připsání platby budete informováni.`,
+Odkaz na transakci: ${buyerLink}`,
   });
 
-  // Email to seller
+  // Notify seller
+  const sellerLink = `${baseUrl}/transaction/${transaction.id}?token=${transaction.accessTokenSeller}`;
   await sendEmail({
-    to: input.sellerEmail,
-    subject: "Platba v klidu – Nová transakce vytvořena",
-    body: `Byla vytvořena nová escrow transakce.
+    to: transaction.sellerEmail,
+    subject: "Platba v klidu – Transakce schválena",
+    body: `Transakce byla schválena! Čekáme na platbu od kupujícího.
 
-Částka: ${input.amount} CZK
-${input.subject ? `Předmět: ${input.subject}` : ""}
+Částka: ${transaction.amount} CZK
+${transaction.subject ? `Předmět: ${transaction.subject}` : ""}
 
-Váš PIN pro přístup k transakci: ${sellerPin}
-Odkaz na transakci: ${transactionUrl}
+⚠️ NEODESÍLEJTE ZBOŽÍ dokud neobdržíte potvrzení o zaplacení.
 
-⚠️ NEODESÍLEJTE ZBOŽÍ! Čekáme na potvrzení platby od kupujícího.`,
+Odkaz na transakci: ${sellerLink}`,
   });
-
-  return {
-    id: transaction.id,
-    buyerPin,
-    sellerPin,
-  };
 }
 
 export function isValidTransition(
@@ -117,41 +212,32 @@ export async function updateTransactionStatus(
   const transaction = await prisma.transaction.findUnique({ where: { id } });
   if (!transaction) throw new Error("Transaction not found");
 
-  // Admin can force PAID and COMPLETED transitions
   if (isAdmin) {
-    if (
+    // Admin can force certain transitions
+    const adminAllowed =
       (newStatus === "PAID" && transaction.status === "WAITING_FOR_PAYMENT") ||
       (newStatus === "COMPLETED" &&
-        (transaction.status === "SUCCESSFULLY_DELIVERED" ||
-          transaction.status === "DISPUTED"))
-    ) {
-      await prisma.transaction.update({
-        where: { id },
-        data: { status: newStatus },
-      });
-      await sendStatusChangeEmails(transaction.id, newStatus);
+        (transaction.status === "SUCCESSFULLY_DELIVERED" || transaction.status === "DISPUTED")) ||
+      (newStatus === "REFUNDED" && transaction.status === "DISPUTED") ||
+      (newStatus === "EXPIRED" &&
+        (transaction.status === "WAITING_FOR_APPROVAL" || transaction.status === "WAITING_FOR_PAYMENT"));
+
+    if (adminAllowed) {
+      await prisma.transaction.update({ where: { id }, data: { status: newStatus } });
+      await sendStatusChangeEmails(id, newStatus);
       return;
     }
   }
 
   if (!isValidTransition(transaction.status, newStatus)) {
-    throw new Error(
-      `Invalid transition from ${transaction.status} to ${newStatus}`
-    );
+    throw new Error(`Invalid transition from ${transaction.status} to ${newStatus}`);
   }
 
-  await prisma.transaction.update({
-    where: { id },
-    data: { status: newStatus },
-  });
-
+  await prisma.transaction.update({ where: { id }, data: { status: newStatus } });
   await sendStatusChangeEmails(id, newStatus);
 }
 
-export async function addTrackingId(
-  id: string,
-  trackingId: string
-): Promise<void> {
+export async function addTrackingId(id: string, trackingId: string): Promise<void> {
   const transaction = await prisma.transaction.findUnique({ where: { id } });
   if (!transaction) throw new Error("Transaction not found");
   if (transaction.status !== "PAID") {
@@ -174,7 +260,8 @@ async function sendStatusChangeEmails(
   if (!transaction) return;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-  const transactionUrl = `${baseUrl}/transaction/${transaction.id}`;
+  const buyerLink = `${baseUrl}/transaction/${transaction.id}?token=${transaction.accessTokenBuyer}`;
+  const sellerLink = `${baseUrl}/transaction/${transaction.id}?token=${transaction.accessTokenSeller}`;
 
   switch (newStatus) {
     case "PAID":
@@ -187,7 +274,7 @@ async function sendStatusChangeEmails(
 ${transaction.subject ? `Předmět: ${transaction.subject}` : ""}
 
 Prosím odešlete zboží a zadejte sledovací číslo zásilky.
-Odkaz na transakci: ${transactionUrl}`,
+Odkaz na transakci: ${sellerLink}`,
       });
       break;
 
@@ -201,7 +288,7 @@ Sledovací číslo: ${transaction.trackingId}
 ${transaction.subject ? `Předmět: ${transaction.subject}` : ""}
 
 Po obdržení zásilky prosím potvrďte doručení nebo podejte reklamaci.
-Odkaz na transakci: ${transactionUrl}`,
+Odkaz na transakci: ${buyerLink}`,
       });
       break;
 
@@ -209,9 +296,7 @@ Odkaz na transakci: ${transactionUrl}`,
       await sendEmail({
         to: transaction.sellerEmail,
         subject: "Platba v klidu – Doručení potvrzeno",
-        body: `Kupující potvrdil doručení zásilky!
-
-Částka ${transaction.amount} CZK bude brzy odeslána na váš účet.`,
+        body: `Kupující potvrdil doručení zásilky! Částka ${transaction.amount} CZK bude brzy odeslána na váš účet.`,
       });
       break;
 
@@ -224,27 +309,32 @@ Odkaz na transakci: ${transactionUrl}`,
 Částka: ${transaction.amount} CZK
 ${transaction.subject ? `Předmět: ${transaction.subject}` : ""}
 
-Vyplatení je pozastaveno do vyřešení reklamace.`,
+Vyplatění je pozastaveno do vyřešení reklamace.`,
       });
       break;
 
-    case "COMPLETED":
-      const completionMsg = `Transakce byla úspěšně uzavřena.
+    case "COMPLETED": {
+      const msg = `Transakce byla úspěšně uzavřena.
 
 Částka: ${transaction.amount} CZK
 ${transaction.subject ? `Předmět: ${transaction.subject}` : ""}
 
 Děkujeme za použití služby Platba v klidu!`;
+      await sendEmail({ to: transaction.buyerEmail, subject: "Platba v klidu – Transakce uzavřena", body: msg });
+      await sendEmail({ to: transaction.sellerEmail, subject: "Platba v klidu – Transakce uzavřena", body: msg });
+      break;
+    }
 
+    case "REFUNDED":
       await sendEmail({
         to: transaction.buyerEmail,
-        subject: "Platba v klidu – Transakce uzavřena",
-        body: completionMsg,
+        subject: "Platba v klidu – Peníze vráceny",
+        body: `Částka ${transaction.amount} CZK byla vrácena na váš účet. Transakce byla uzavřena.`,
       });
       await sendEmail({
         to: transaction.sellerEmail,
-        subject: "Platba v klidu – Transakce uzavřena",
-        body: completionMsg,
+        subject: "Platba v klidu – Transakce uzavřena (vrácení)",
+        body: `Transakce byla uzavřena. Částka byla vrácena kupujícímu.`,
       });
       break;
   }
@@ -252,70 +342,57 @@ Děkujeme za použití služby Platba v klidu!`;
 
 export async function getTransactionForUser(
   id: string,
-  email: string,
-  pin: string
+  token: string
 ): Promise<{ transaction: Record<string, unknown>; role: "buyer" | "seller" } | null> {
-  const { verifyPin } = await import("./pin");
-  const transaction = await prisma.transaction.findUnique({
-    where: { id },
-  });
-
+  const transaction = await prisma.transaction.findUnique({ where: { id } });
   if (!transaction) return null;
 
-  if (
-    transaction.buyerEmail === email &&
-    verifyPin(pin, transaction.pinCodeBuyer)
-  ) {
-    // Generate QR code for buyer if still waiting for payment
-    let qrCodeDataUrl: string | null = null;
-    if (transaction.status === "WAITING_FOR_PAYMENT") {
-      const escrowIban = process.env.ESCROW_IBAN || "CZ0000000000000000000000";
-      const totalAmount = Math.round(transaction.amount * 1.01 * 100) / 100;
-      qrCodeDataUrl = await generateSpaydQrDataUrl({
-        iban: escrowIban,
-        amount: totalAmount,
-        message: `Escrow ${transaction.id.substring(0, 8)}`,
-        variableSymbol: transaction.id.replace(/-/g, "").substring(0, 10),
-      });
-    }
+  const isBuyer = transaction.accessTokenBuyer === token;
+  const isSeller = transaction.accessTokenSeller === token;
+  if (!isBuyer && !isSeller) return null;
 
-    return {
-      transaction: {
-        id: transaction.id,
-        sellerEmail: transaction.sellerEmail,
-        amount: transaction.amount,
-        subject: transaction.subject,
-        description: transaction.description,
-        status: transaction.status,
-        trackingId: transaction.trackingId,
-        createdAt: transaction.createdAt,
-        updatedAt: transaction.updatedAt,
-        qrCodeDataUrl,
-      },
-      role: "buyer",
-    };
+  // Generate QR code for buyer if WAITING_FOR_PAYMENT
+  let qrCodeDataUrl: string | null = null;
+  if (isBuyer && transaction.status === "WAITING_FOR_PAYMENT") {
+    const escrowIban = process.env.ESCROW_IBAN || "CZ0000000000000000000000";
+    const totalAmount = calculateTotalAmount(transaction.amount);
+    qrCodeDataUrl = await generateSpaydQrDataUrl({
+      iban: escrowIban,
+      amount: totalAmount,
+      message: `Escrow ${transaction.id.substring(0, 8)}`,
+      variableSymbol: transaction.id.replace(/-/g, "").substring(0, 10),
+    });
   }
 
-  if (
-    transaction.sellerEmail === email &&
-    verifyPin(pin, transaction.pinCodeSeller)
-  ) {
-    return {
-      transaction: {
-        id: transaction.id,
-        buyerEmail: transaction.buyerEmail,
-        amount: transaction.amount,
-        subject: transaction.subject,
-        description: transaction.description,
-        status: transaction.status,
-        trackingId: transaction.trackingId,
-        sellerBankAccount: transaction.sellerBankAccount,
-        createdAt: transaction.createdAt,
-        updatedAt: transaction.updatedAt,
-      },
-      role: "seller",
-    };
-  }
+  // Determine if this user needs to approve
+  const needsApproval = transaction.status === "WAITING_FOR_APPROVAL" &&
+    ((transaction.createdBy === "BUYER" && isSeller) ||
+     (transaction.createdBy === "SELLER" && isBuyer));
 
-  return null;
+  // Determine if this user is the creator waiting for approval
+  const waitingForOtherApproval = transaction.status === "WAITING_FOR_APPROVAL" &&
+    ((transaction.createdBy === "BUYER" && isBuyer) ||
+     (transaction.createdBy === "SELLER" && isSeller));
+
+  return {
+    transaction: {
+      id: transaction.id,
+      createdBy: transaction.createdBy,
+      sellerEmail: transaction.sellerEmail,
+      buyerEmail: transaction.buyerEmail,
+      amount: transaction.amount,
+      subject: transaction.subject,
+      description: transaction.description,
+      status: transaction.status,
+      trackingId: transaction.trackingId,
+      sellerBankAccount: isSeller ? transaction.sellerBankAccount : undefined,
+      createdAt: transaction.createdAt,
+      updatedAt: transaction.updatedAt,
+      qrCodeDataUrl,
+      needsApproval,
+      waitingForOtherApproval,
+      needsBankAccount: needsApproval && transaction.createdBy === "BUYER" && isSeller,
+    },
+    role: isBuyer ? "buyer" : "seller",
+  };
 }

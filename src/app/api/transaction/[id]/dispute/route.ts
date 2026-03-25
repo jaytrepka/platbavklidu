@@ -8,25 +8,18 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { email, pin } = body;
+    const { token } = body;
 
-    if (!email || !pin) {
-      return NextResponse.json(
-        { error: "Email and PIN are required" },
-        { status: 400 }
-      );
+    if (!token) {
+      return NextResponse.json({ error: "Token is required" }, { status: 400 });
     }
 
-    const auth = await getTransactionForUser(id, email, pin);
+    const auth = await getTransactionForUser(id, token);
     if (!auth || auth.role !== "buyer") {
-      return NextResponse.json(
-        { error: "Unauthorized. Only the buyer can file a complaint." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     await updateTransactionStatus(id, "DISPUTED");
-
     return NextResponse.json({ message: "Complaint filed" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to file complaint";

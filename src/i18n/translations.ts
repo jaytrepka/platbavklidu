@@ -87,7 +87,7 @@ const translations = {
     // v1.1 - Fee
     totalAmount: "Celková částka",
     serviceFee: "Servisní poplatek (1 %)",
-    feeTooltip: "Za zprostředkování bezpečného obchodu účtujeme servisní poplatek 1 % z částky transakce.",
+    feeTooltip: "Za zprostředkování bezpečného obchodu účtujeme servisní poplatek 1 % z částky transakce, minimálně 10 Kč.",
     amountWithoutFee: "Částka obchodu",
 
     // v1.1 - Stats
@@ -108,7 +108,7 @@ const translations = {
     howItWorksStep3: "Po přijetí platby je prodávající vyzván k odeslání zboží.",
     howItWorksStep4: "Kupující potvrdí doručení nebo podá reklamaci.",
     howItWorksStep5: "Po potvrzení doručení jsou peníze odeslány na účet prodávajícího.",
-    feeExplanation: "Platba v klidu účtuje servisní poplatek ve výši 1 % z částky transakce za zprostředkování bezpečného obchodu mezi kupujícím a prodávajícím.",
+    feeExplanation: "Platba v klidu účtuje servisní poplatek ve výši 1 % z částky transakce (minimálně 10 Kč) za zprostředkování bezpečného obchodu mezi kupujícím a prodávajícím.",
     disputeExplanation: "V případě reklamace je vyplacení pozastaveno a náš tým situaci individuálně řeší.",
 
     // v1.2 - Transaction detail
@@ -119,6 +119,25 @@ const translations = {
     participants: "Účastníci",
     otherParty: "Protistrana",
     you: "Vy",
+
+    // v1.3 - Approval flow & states
+    status_WAITING_FOR_APPROVAL: "Čeká na schválení",
+    status_REFUNDED: "Vráceno",
+    status_EXPIRED: "Vypršelo",
+    createdByLabel: "Vytvořil",
+    createdByBuyer: "Kupující",
+    createdBySeller: "Prodávající",
+    iAmBuyer: "Jsem kupující",
+    iAmSeller: "Jsem prodávající",
+    waitingForApproval: "Čeká na schválení protistranou",
+    approveTransaction: "Schválit transakci",
+    approveAndEnterBank: "Schválit a zadat bankovní účet",
+    enterBankAccount: "Zadejte číslo bankovního účtu (IBAN)",
+    transactionApproved: "Transakce byla schválena!",
+    waitingForOtherParty: "Čekáme na schválení od protistrany.",
+    resolveForBuyer: "Vrátit peníze kupujícímu",
+    resolveForSeller: "Vyplatit prodávajícímu",
+    minFeeNotice: "Minimální poplatek je 10 Kč",
   },
   en: {
     appName: "Platba v klidu",
@@ -195,7 +214,7 @@ const translations = {
 
     totalAmount: "Total amount",
     serviceFee: "Service fee (1%)",
-    feeTooltip: "We charge a 1% service fee for providing a secure escrow intermediary service.",
+    feeTooltip: "We charge a service fee of 1% of the transaction amount (minimum 10 CZK) for providing a secure escrow intermediary service.",
     amountWithoutFee: "Trade amount",
 
     statsHeading: "Trusted by hundreds of users",
@@ -214,7 +233,7 @@ const translations = {
     howItWorksStep3: "After the payment is received, the seller is prompted to ship the goods.",
     howItWorksStep4: "The buyer confirms delivery or files a complaint.",
     howItWorksStep5: "After delivery confirmation, the funds are sent to the seller's bank account.",
-    feeExplanation: "Platba v klidu charges a 1% service fee on the transaction amount for providing a secure escrow intermediary service between buyer and seller.",
+    feeExplanation: "Platba v klidu charges a service fee of 1% of the transaction amount (minimum 10 CZK) for providing a secure escrow intermediary service between buyer and seller.",
     disputeExplanation: "In case of a complaint, the payout is suspended and our team resolves the situation individually.",
 
     pleasePay: "Please pay",
@@ -224,6 +243,24 @@ const translations = {
     participants: "Participants",
     otherParty: "Other party",
     you: "You",
+
+    status_WAITING_FOR_APPROVAL: "Waiting for approval",
+    status_REFUNDED: "Refunded",
+    status_EXPIRED: "Expired",
+    createdByLabel: "Created by",
+    createdByBuyer: "Buyer",
+    createdBySeller: "Seller",
+    iAmBuyer: "I am the buyer",
+    iAmSeller: "I am the seller",
+    waitingForApproval: "Waiting for approval from the other party",
+    approveTransaction: "Approve transaction",
+    approveAndEnterBank: "Approve and enter bank account",
+    enterBankAccount: "Enter your bank account number (IBAN)",
+    transactionApproved: "Transaction approved!",
+    waitingForOtherParty: "Waiting for approval from the other party.",
+    resolveForBuyer: "Refund buyer",
+    resolveForSeller: "Pay out to seller",
+    minFeeNotice: "Minimum fee is 10 CZK",
   },
 } as const;
 

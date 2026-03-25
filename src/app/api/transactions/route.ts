@@ -5,13 +5,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { sellerEmail, sellerBankAccount, buyerEmail, amount, subject, description } = body;
+    const { sellerEmail, sellerBankAccount, buyerEmail, amount, subject, description, createdBy } = body;
 
-    if (!sellerEmail || !sellerBankAccount || !buyerEmail || !amount) {
+    if (!sellerEmail || !buyerEmail || !amount || !createdBy) {
       return NextResponse.json(
-        { error: "Missing required fields: sellerEmail, sellerBankAccount, buyerEmail, amount" },
+        { error: "Missing required fields: sellerEmail, buyerEmail, amount, createdBy" },
         { status: 400 }
       );
+    }
+
+    if (!["BUYER", "SELLER"].includes(createdBy)) {
+      return NextResponse.json({ error: "createdBy must be BUYER or SELLER" }, { status: 400 });
     }
 
     if (typeof amount !== "number" || amount <= 0) {
@@ -21,7 +25,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // sellerBankAccount is required only when seller creates
+    if (createdBy === "SELLER" && !sellerBankAccount) {
+      return NextResponse.json({ error: "sellerBankAccount is required when seller creates" }, { status: 400 });
+    }
+
     const result = await createTransaction({
+      createdBy,
       sellerEmail,
       sellerBankAccount,
       buyerEmail,

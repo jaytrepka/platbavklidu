@@ -7,29 +7,38 @@ datasource db {
 }
 
 enum TransactionStatus {
+  WAITING_FOR_APPROVAL
   WAITING_FOR_PAYMENT
   PAID
   SHIPPED
   SUCCESSFULLY_DELIVERED
   DISPUTED
   COMPLETED
+  REFUNDED
+  EXPIRED
+}
+
+enum CreatedBy {
+  BUYER
+  SELLER
 }
 
 model Transaction {
-  id                String            @id @default(uuid())
-  sellerEmail       String
-  sellerBankAccount String
-  buyerEmail        String
-  amount            Float
-  subject           String?
-  description       String?
-  status            TransactionStatus @default(WAITING_FOR_PAYMENT)
-  trackingId        String?
-  pinCodeBuyer      String
-  pinCodeSeller     String
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  comments          AdminComment[]
+  id                 String            @id @default(uuid())
+  createdBy          CreatedBy
+  sellerEmail        String
+  sellerBankAccount  String?
+  buyerEmail         String
+  amount             Float
+  subject            String?
+  description        String?
+  status             TransactionStatus @default(WAITING_FOR_APPROVAL)
+  trackingId         String?
+  accessTokenBuyer   String            @unique
+  accessTokenSeller  String            @unique
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  comments           AdminComment[]
 }
 
 model AdminComment {

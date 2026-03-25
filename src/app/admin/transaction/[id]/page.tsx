@@ -7,12 +7,15 @@ import { getStatusLabel } from "@/i18n/translations";
 import Link from "next/link";
 
 const STATUSES = [
+  "WAITING_FOR_APPROVAL",
   "WAITING_FOR_PAYMENT",
   "PAID",
   "SHIPPED",
   "SUCCESSFULLY_DELIVERED",
   "DISPUTED",
   "COMPLETED",
+  "REFUNDED",
+  "EXPIRED",
 ];
 
 interface AdminComment {
@@ -122,12 +125,15 @@ export default function AdminTransactionDetailPage({ params }: { params: Promise
   }
 
   const statusColors: Record<string, string> = {
+    WAITING_FOR_APPROVAL: "bg-orange-100 text-orange-800",
     WAITING_FOR_PAYMENT: "bg-yellow-100 text-yellow-800",
     PAID: "bg-blue-100 text-blue-800",
     SHIPPED: "bg-purple-100 text-purple-800",
     SUCCESSFULLY_DELIVERED: "bg-green-100 text-green-800",
     DISPUTED: "bg-red-100 text-red-800",
     COMPLETED: "bg-gray-100 text-gray-800",
+    REFUNDED: "bg-pink-100 text-pink-800",
+    EXPIRED: "bg-gray-200 text-gray-600",
   };
 
   if (loading) {
@@ -244,6 +250,70 @@ export default function AdminTransactionDetailPage({ params }: { params: Promise
               {statusLoading ? t("loading") : t("save")}
             </button>
           </div>
+
+          {/* Dispute resolution buttons */}
+          {transaction.status === "DISPUTED" && (
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={async () => {
+                  setStatusLoading(true);
+                  setError("");
+                  try {
+                    const res = await fetch(`/api/admin/transaction/${id}/status`, {
+                      method: "PUT",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${getToken()}`,
+                      },
+                      body: JSON.stringify({ status: "REFUNDED" }),
+                    });
+                    if (!res.ok) {
+                      const err = await res.json();
+                      throw new Error(err.error);
+                    }
+                    await fetchTransaction();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : t("errorOccurred"));
+                  } finally {
+                    setStatusLoading(false);
+                  }
+                }}
+                disabled={statusLoading}
+                className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {t("resolveForBuyer")}
+              </button>
+              <button
+                onClick={async () => {
+                  setStatusLoading(true);
+                  setError("");
+                  try {
+                    const res = await fetch(`/api/admin/transaction/${id}/status`, {
+                      method: "PUT",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${getToken()}`,
+                      },
+                      body: JSON.stringify({ status: "COMPLETED" }),
+                    });
+                    if (!res.ok) {
+                      const err = await res.json();
+                      throw new Error(err.error);
+                    }
+                    await fetchTransaction();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : t("errorOccurred"));
+                  } finally {
+                    setStatusLoading(false);
+                  }
+                }}
+                disabled={statusLoading}
+                className="flex-1 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition disabled:opacity-50"
+              >
+                {t("resolveForSeller")}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Comments */}
