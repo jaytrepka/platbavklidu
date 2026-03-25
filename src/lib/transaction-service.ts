@@ -52,9 +52,11 @@ export async function createTransaction(
 
   // Generate SPAYD QR code for buyer
   const escrowIban = process.env.ESCROW_IBAN || "CZ0000000000000000000000";
+  const totalAmount = Math.round(input.amount * 1.01 * 100) / 100;
+  const fee = Math.round(input.amount * 0.01 * 100) / 100;
   const qrDataUrl = await generateSpaydQrDataUrl({
     iban: escrowIban,
-    amount: input.amount,
+    amount: totalAmount,
     message: `Escrow ${transaction.id.substring(0, 8)}`,
     variableSymbol: transaction.id.replace(/-/g, "").substring(0, 10),
   });
@@ -65,7 +67,9 @@ export async function createTransaction(
     subject: "Platba v klidu – Nová transakce vytvořena",
     body: `Byla vytvořena nová escrow transakce.
 
-Částka: ${input.amount} CZK
+Částka obchodu: ${input.amount} CZK
+Servisní poplatek (1 %): ${fee} CZK
+Celková částka k úhradě: ${totalAmount} CZK
 ${input.subject ? `Předmět: ${input.subject}` : ""}
 
 Váš PIN pro přístup k transakci: ${buyerPin}
