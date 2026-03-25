@@ -307,9 +307,9 @@ function TransactionContent({ id }: { id: string }) {
     icon: <Info className="w-6 h-6" />,
   };
 
-  const totalAmount = transaction.amount;
-  const amountWithoutFee = Math.round((totalAmount / 1.01) * 100) / 100;
-  const feeAmount = Math.round((totalAmount - amountWithoutFee) * 100) / 100;
+  const baseAmount = transaction.amount;
+  const feeAmount = Math.round(Math.max(baseAmount * 0.01, 10) * 100) / 100;
+  const totalAmount = Math.round((baseAmount + feeAmount) * 100) / 100;
 
   // Transaction detail
   return (
@@ -539,20 +539,25 @@ function TransactionContent({ id }: { id: string }) {
                   <div className="bg-white dark:bg-gray-800 rounded-lg p-4 space-y-2 text-sm">
                     <div className="flex justify-between text-gray-600 dark:text-gray-400">
                       <span>{t("amountWithoutFee")}</span>
-                      <span>{amountWithoutFee.toLocaleString()} CZK</span>
+                      <span>{baseAmount.toLocaleString()} CZK</span>
                     </div>
                     <div className="flex justify-between text-gray-600 dark:text-gray-400">
                       <span className="flex items-center gap-1">
-                        {t("serviceFee")} (1%)
-                        <span
-                          title={t("feeTooltip")}
-                          className="cursor-help"
-                        >
-                          <Info className="w-3.5 h-3.5 text-gray-400" />
+                        {t("serviceFee")}
+                        <span className="relative group">
+                          <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-56 px-3 py-2 text-xs font-normal text-white bg-gray-900 dark:bg-gray-700 rounded-lg shadow-lg z-10">
+                            {t("feeTooltip")}
+                          </span>
                         </span>
                       </span>
                       <span>{feeAmount.toLocaleString()} CZK</span>
                     </div>
+                    {feeAmount === 10 && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        {t("minFeeNotice")}
+                      </p>
+                    )}
                     <div className="flex justify-between font-bold text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-600 pt-2">
                       <span>{t("totalAmount")}</span>
                       <span>{totalAmount.toLocaleString()} CZK</span>
