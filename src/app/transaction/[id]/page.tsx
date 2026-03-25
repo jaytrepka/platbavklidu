@@ -592,6 +592,21 @@ function TransactionContent({ id }: { id: string }) {
                 </div>
               )}
 
+            {/* PAID — Buyer: waiting for seller to ship */}
+            {role === "buyer" && transaction.status === "PAID" && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 flex items-start gap-4">
+                <Package className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-bold text-blue-900 dark:text-blue-300">
+                    {t("paymentReceived")}
+                  </h3>
+                  <p className="text-sm text-blue-800 dark:text-blue-400 mt-1">
+                    {t("waitingForShipment")}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* PAID — Seller: Add tracking ID */}
             {role === "seller" && transaction.status === "PAID" && (
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">

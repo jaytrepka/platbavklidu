@@ -138,6 +138,8 @@ const translations = {
     resolveForBuyer: "Vrátit peníze kupujícímu",
     resolveForSeller: "Vyplatit prodávajícímu",
     minFeeNotice: "Minimální poplatek je 10 Kč",
+    paymentReceived: "Platba přijata",
+    waitingForShipment: "Čeká se, až prodávající odešle zásilku a zadá sledovací číslo.",
   },
   en: {
     appName: "Platba v klidu",
@@ -261,6 +263,8 @@ const translations = {
     resolveForBuyer: "Refund buyer",
     resolveForSeller: "Pay out to seller",
     minFeeNotice: "Minimum fee is 10 CZK",
+    paymentReceived: "Payment received",
+    waitingForShipment: "Waiting for the seller to ship the item and provide a tracking number.",
   },
 } as const;
 
