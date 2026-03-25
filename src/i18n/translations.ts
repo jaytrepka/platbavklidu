@@ -110,6 +110,15 @@ const translations = {
     howItWorksStep5: "Po potvrzení doručení jsou peníze odeslány na účet prodávajícího.",
     feeExplanation: "Platba v klidu účtuje servisní poplatek ve výši 1 % z částky transakce za zprostředkování bezpečného obchodu mezi kupujícím a prodávajícím.",
     disputeExplanation: "V případě reklamace je vyplacení pozastaveno a náš tým situaci individuálně řeší.",
+
+    // v1.2 - Transaction detail
+    pleasePay: "Zaplaťte prosím",
+    pleasePayDescription: "Naskenujte QR kód nebo proveďte platbu manuálně na escrow účet.",
+    doNotShip: "Neposílejte předmět!",
+    doNotShipDescription: "Vyčkejte na email s potvrzením o zaplacení. Teprve poté zboží odešlete.",
+    participants: "Účastníci",
+    otherParty: "Protistrana",
+    you: "Vy",
   },
   en: {
     appName: "Platba v klidu",
@@ -207,6 +216,14 @@ const translations = {
     howItWorksStep5: "After delivery confirmation, the funds are sent to the seller's bank account.",
     feeExplanation: "Platba v klidu charges a 1% service fee on the transaction amount for providing a secure escrow intermediary service between buyer and seller.",
     disputeExplanation: "In case of a complaint, the payout is suspended and our team resolves the situation individually.",
+
+    pleasePay: "Please pay",
+    pleasePayDescription: "Scan the QR code or make a manual payment to the escrow account.",
+    doNotShip: "Do not ship the item!",
+    doNotShipDescription: "Wait for the payment confirmation email before sending the goods.",
+    participants: "Participants",
+    otherParty: "Other party",
+    you: "You",
   },
 } as const;
 

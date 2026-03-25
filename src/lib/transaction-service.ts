@@ -266,9 +266,23 @@ export async function getTransactionForUser(
     transaction.buyerEmail === email &&
     verifyPin(pin, transaction.pinCodeBuyer)
   ) {
+    // Generate QR code for buyer if still waiting for payment
+    let qrCodeDataUrl: string | null = null;
+    if (transaction.status === "WAITING_FOR_PAYMENT") {
+      const escrowIban = process.env.ESCROW_IBAN || "CZ0000000000000000000000";
+      const totalAmount = Math.round(transaction.amount * 1.01 * 100) / 100;
+      qrCodeDataUrl = await generateSpaydQrDataUrl({
+        iban: escrowIban,
+        amount: totalAmount,
+        message: `Escrow ${transaction.id.substring(0, 8)}`,
+        variableSymbol: transaction.id.replace(/-/g, "").substring(0, 10),
+      });
+    }
+
     return {
       transaction: {
         id: transaction.id,
+        sellerEmail: transaction.sellerEmail,
         amount: transaction.amount,
         subject: transaction.subject,
         description: transaction.description,
@@ -276,6 +290,7 @@ export async function getTransactionForUser(
         trackingId: transaction.trackingId,
         createdAt: transaction.createdAt,
         updatedAt: transaction.updatedAt,
+        qrCodeDataUrl,
       },
       role: "buyer",
     };
