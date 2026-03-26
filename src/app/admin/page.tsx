@@ -121,8 +121,10 @@ export default function AdminPage() {
         <div className="max-w-md w-full mx-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
             <div className="flex items-center gap-3 mb-6">
-              <Logo size={32} />
-              <h1 className="text-xl font-bold">{t("adminLogin")}</h1>
+              <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <Logo size={32} />
+                <h1 className="text-xl font-bold">{t("adminLogin")}</h1>
+              </Link>
             </div>
             {loginError && (
               <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
@@ -156,12 +158,12 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 shadow-sm p-4">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <Logo size={24} />
             <h1 className="text-lg font-bold">{t("appName")} – {t("admin")}</h1>
-          </div>
+          </Link>
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
             <button

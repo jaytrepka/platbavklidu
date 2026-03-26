@@ -165,13 +165,15 @@ export default function AdminTransactionDetailPage({ params }: { params: Promise
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="bg-white dark:bg-gray-800 shadow-sm p-4">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-4">
         <div className="max-w-5xl mx-auto flex items-center gap-4">
           <Link href="/admin" className="text-gray-500 hover:text-gray-700">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <Logo size={24} />
-          <h1 className="text-lg font-bold">{t("transactionDetail")}</h1>
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Logo size={24} />
+            <h1 className="text-lg font-bold">{t("transactionDetail")}</h1>
+          </Link>
         </div>
       </header>
 

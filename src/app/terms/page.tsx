@@ -27,23 +27,25 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-850 dark:to-gray-800">
       {/* Header */}
-      <header className="mx-auto flex max-w-4xl items-center justify-between p-6">
-        <div className="flex items-center gap-3">
-          <Logo size={32} />
-          <span className="text-xl font-bold text-gray-900 dark:text-white">
-            {t("appName")}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {t("home")}
+      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/60 dark:border-gray-700/60 sticky top-0 z-10">
+        <div className="mx-auto flex max-w-4xl items-center justify-between p-4 sm:p-6">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Logo size={32} />
+            <span className="text-xl font-bold text-gray-900 dark:text-white">
+              {t("appName")}
+            </span>
           </Link>
-          <LanguageSwitcher />
+
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {t("home")}
+            </Link>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 

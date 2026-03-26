@@ -88,15 +88,17 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-850 dark:to-gray-800">
-      <header className="p-6 flex justify-between items-center max-w-4xl mx-auto w-full">
-        <div className="flex items-center gap-3">
-          <Logo size={32} />
-          <div>
-            <h1 className="text-xl font-bold">{t("appName")}</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{t("appDescription")}</p>
-          </div>
+      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/60 dark:border-gray-700/60 sticky top-0 z-10">
+        <div className="p-4 sm:p-6 flex justify-between items-center max-w-4xl mx-auto w-full">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Logo size={32} />
+            <div>
+              <h1 className="text-xl font-bold">{t("appName")}</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t("appDescription")}</p>
+            </div>
+          </Link>
+          <LanguageSwitcher />
         </div>
-        <LanguageSwitcher />
       </header>
 
       {/* Hero section */}

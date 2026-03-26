@@ -282,14 +282,16 @@ function TransactionContent({ id }: { id: string }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <header className="p-6 flex justify-between items-center max-w-4xl mx-auto">
-          <div className="flex items-center gap-3">
-            <Logo size={32} />
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              {t("appName")}
-            </h1>
+        <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/60 dark:border-gray-700/60 sticky top-0 z-10">
+          <div className="p-4 sm:p-6 flex justify-between items-center max-w-4xl mx-auto">
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <Logo size={32} />
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                {t("appName")}
+              </h1>
+            </Link>
+            <LanguageSwitcher />
           </div>
-          <LanguageSwitcher />
         </header>
         <main className="max-w-md mx-auto px-6 py-12 text-center">
           <p className="text-gray-500">{t("loading")}</p>
@@ -302,14 +304,16 @@ function TransactionContent({ id }: { id: string }) {
   if (!transaction || !role) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <header className="p-6 flex justify-between items-center max-w-4xl mx-auto">
-          <div className="flex items-center gap-3">
-            <Logo size={32} />
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              {t("appName")}
-            </h1>
+        <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/60 dark:border-gray-700/60 sticky top-0 z-10">
+          <div className="p-4 sm:p-6 flex justify-between items-center max-w-4xl mx-auto">
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <Logo size={32} />
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                {t("appName")}
+              </h1>
+            </Link>
+            <LanguageSwitcher />
           </div>
-          <LanguageSwitcher />
         </header>
 
         <main className="max-w-md mx-auto px-6 py-12">
@@ -357,18 +361,20 @@ function TransactionContent({ id }: { id: string }) {
   // Transaction detail
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <header className="p-6 flex justify-between items-center max-w-4xl mx-auto">
-        <div className="flex items-center gap-3">
-          <Logo size={32} />
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            {t("appName")}
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {role === "buyer" ? t("buyer") : t("seller")}
-          </span>
-          <LanguageSwitcher />
+      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200/60 dark:border-gray-700/60 sticky top-0 z-10">
+        <div className="p-4 sm:p-6 flex justify-between items-center max-w-4xl mx-auto">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Logo size={32} />
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              {t("appName")}
+            </h1>
+          </Link>
+          <div className="flex items-center gap-4">
+            <span className="px-3 py-1 rounded-full text-sm font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+              {role === "buyer" ? t("buyer") : t("seller")}
+            </span>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
